@@ -3,24 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Загрузка...</title>
+    <title>Перенаправление...</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: #000; color: white; font-family: sans-serif; }
-        img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        #status { padding: 20px; text-align: center; }
+        :root {
+            --bg: #f4f7f9;
+            --card: #ffffff;
+            --text: #2c3e50;
+            --accent: #3498db;
+        }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background: var(--bg); color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .container {
+            text-align: center; padding: 2rem;
+            background: var(--card); border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            max-width: 90%; width: 350px;
+        }
+        .loader {
+            border: 3px solid #f3f3f3; border-top: 3px solid var(--accent);
+            border-radius: 50%; width: 30px; height: 30px;
+            animation: spin 1s linear infinite; margin: 0 auto 1rem;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Стиль для режима просмотра картинки */
+        .img-mode { background: #000; }
+        .full-img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+        
+        .error-msg { color: #e74c3c; font-size: 0.9rem; }
     </style>
 </head>
 <body>
-    <div id="status">Обработка данных...</div>
+
+    <div id="main-card" class="container">
+        <div class="loader"></div>
+        <div id="status">Святослав, подождите секунду...</div>
+    </div>
 
     <script>
         async function doRedirect() {
             const urlParams = new URLSearchParams(window.location.search);
             const linkId = urlParams.get('id');
             const statusDiv = document.getElementById('status');
+            const mainCard = document.getElementById('main-card');
 
             if (!linkId) {
-                statusDiv.innerHTML = "Ошибка: ID не указан.";
+                statusDiv.innerHTML = "<span class='error-msg'>Упс! ID не указан.</span>";
                 return;
             }
 
@@ -29,11 +61,46 @@
             try {
                 const response = await fetch(fileUrl);
                 const data = await response.text();
-                const lines = data.split('\n');
                 
-                let content = '';
+                // Улучшенный поиск через регулярку (ищет id=... до конца строки)
+                const regex = new RegExp(`^id=${linkId}\\s+(.+)$`, 'm');
+                const match = data.match(regex);
 
-                for (let line of lines) {
+                if (match && match[1]) {
+                    const content = match[1].trim();
+
+                    // 1. Проверка на картинку
+                    if (content.startsWith('data:image')) {
+                        document.body.classList.add('img-mode');
+                        document.body.innerHTML = `<img src="${content}" class="full-img">`;
+                        document.title = "Просмотр";
+                    } 
+                    // 2. Проверка на спец-интенты (тел, почта, тг)
+                    else if (content.startsWith('tel:') || content.startsWith('mailto:') || content.startsWith('tg:')) {
+                        statusDiv.innerHTML = "Открываем приложение...";
+                        window.location.href = content;
+                        // Через 2 секунды напишем, что можно закрыть
+                        setTimeout(() => { statusDiv.innerHTML = "Готово! Можете закрыть вкладку."; }, 2000);
+                    }
+                    // 3. Обычная ссылка
+                    else if (content.startsWith('http')) {
+                        window.location.replace(content);
+                    } 
+                    else {
+                        statusDiv.innerHTML = "<span class='error-msg'>Неизвестный тип ссылки.</span>";
+                    }
+                } else {
+                    statusDiv.innerHTML = "<span class='error-msg'>ID не найден в базе.</span>";
+                }
+            } catch (error) {
+                statusDiv.innerHTML = "<span class='error-msg'>Ошибка сети. Проверьте GitHub.</span>";
+            }
+        }
+
+        doRedirect();
+    </script>
+</body>
+</html>
                     let trimmedLine = line.trim();
                     if (trimmedLine.startsWith(`id=${linkId}`)) {
                         // Забираем всё, что после первого пробела
