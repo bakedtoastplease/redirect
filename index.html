@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Перенаправление...</title>
+</head>
+<body>
+    <div id="status">Загрузка...</div>
+
+    <script>
+        async function doRedirect() {
+            // 1. Получаем ID из параметров ( ?id=123 )
+            const urlParams = new URLSearchParams(window.location.search);
+            const linkId = urlParams.get('id');
+            const statusDiv = document.getElementById('status');
+
+            if (!linkId) {
+                statusDiv.innerHTML = "Ошибка: ID не указан в ссылке.";
+                return;
+            }
+
+            const fileUrl = 'https://raw.githubusercontent.com/bakedtoastplease/bakedtoastplease.github.io/main/redirect.txt';
+
+            try {
+                const response = await fetch(fileUrl);
+                const data = await response.text();
+                const lines = data.split('\n');
+                
+                let targetUrl = '';
+
+                // 2. Ищем нужный ID в файле (формат id|url)
+                for (let line of lines) {
+                    const [id, url] = line.split('|');
+                    if (id && id.trim() === linkId.trim()) {
+                        targetUrl = url.trim();
+                        break;
+                    }
+                }
+
+                if (targetUrl) {
+                    // 3. Моментальный переход
+                    window.location.replace(targetUrl);
+                } else {
+                    statusDiv.innerHTML = `Ссылка с ID "${linkId}" не найдена в списке.`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = "Ошибка при загрузке базы ссылок.";
+                console.error(error);
+            }
+        }
+
+        doRedirect();
+    </script>
+</body>
+</html>
